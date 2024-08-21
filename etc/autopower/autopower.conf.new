@@ -1,0 +1,22 @@
+
+# Configuration for Automatic Power Management Daemon
+[General]
+# Interval to check power state (in seconds) [10]
+check_interval = 10
+
+# Default power mode when on battery (performance, balanced, power-saver) [balanced]
+battery_mode = power-saver
+
+# Default power mode when on AC power (performance, balanced, power-saver) [performance]
+ac_mode = performance
+
+# Log file location [/var/log/autopower.log]
+
+log_file = /var/log/autopower.log
+
+[Notifications] (I'm still working on this but it'll most likely get used in the future)
+# Enable or disable notifications
+enable_notifications = true
+
+# Notification level (info, warning, error)
+notification_level = info

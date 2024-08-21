@@ -1,0 +1,10 @@
+[Unit]
+Description=Auto Power Mode Management
+
+[Service]
+ExecStart=/usr/bin/autopower -u
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

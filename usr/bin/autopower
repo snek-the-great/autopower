@@ -1,0 +1,325 @@
+#!/bin/bash
+# This script will switch CPU mode to performance on charging automatically
+# Author: SnekTheGreat
+
+config_file="/etc/autopower/autopower.conf"
+
+#define color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'  # No Color
+
+#require sudo for certain operations
+function require_sudo() {
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}Oops! That didn't work quite right. Are you root?${NC}"
+        exit 1
+    fi
+}
+
+#get the current power profile
+function get_current_profile() {
+    powerprofilesctl | grep -E '^\*' | awk '{print $2}' | sed 's/://'
+}
+
+#log actions
+function log_action() {
+    local log_message=$1
+    local log_file=$(grep -E "^log_file" "$config_file" | awk -F'=' '{print $2}' | xargs)
+    
+    if [ ! -f "$log_file" ]; then
+        require_sudo
+        sudo mkdir -p $(dirname "$log_file")
+        sudo touch "$log_file"
+        sudo chown :autopowerusers "$log_file"
+        sudo chmod 660 "$log_file"
+    fi
+    
+    echo "$(date "+%Y-%m-%d %H:%M:%S") - $log_message" | sudo tee -a "$log_file" > /dev/null
+}
+
+#send notifications
+function send_notification() {
+    local enable_notifications=$(grep -E "^enable_notifications" "$config_file" | awk -F'=' '{print $2}' | xargs)
+    local notification_level=$(grep -E "^notification_level" "$config_file" | awk -F'=' '{print $2}' | xargs)
+
+    if [[ "$enable_notifications" == "true" ]]; then
+        if command -v dbus-launch &> /dev/null; then
+            local message=$1
+            case $notification_level in
+                info)
+                    notify-send "AutoPower Info" "$message" --icon=dialog-information
+                    ;;
+                warning)
+                    notify-send "AutoPower Warning" "$message" --icon=dialog-warning
+                    ;;
+                error)
+                    notify-send "AutoPower Error" "$message" --icon=dialog-error
+                    ;;
+                *)
+                    notify-send "AutoPower Notification" "$message"
+                    ;;
+            esac
+        else
+            log_action "$1"
+        fi
+    fi
+}
+
+#determine power mode and apply the appropriate profile
+function set_power_profile() {
+    local ac_profile=$(grep -E "^ac_mode" "$config_file" | awk -F'=' '{print $2}' | xargs)
+    local battery_profile=$(grep -E "^battery_mode" "$config_file" | awk -F'=' '{print $2}' | xargs)
+
+    local desired_profile
+
+    if on_ac_power; then
+        log_action "System is on AC power"
+        desired_profile="$ac_profile"
+    else
+        log_action "System is on battery"
+        desired_profile="$battery_profile"
+    fi
+
+    local current_profile=$(get_current_profile)
+
+    if [[ "$current_profile" != "$desired_profile" ]]; then
+        require_sudo
+        sudo powerprofilesctl set "$desired_profile"
+        log_action "Switched to $desired_profile mode"
+        send_notification "Switched to $desired_profile mode."
+    else
+        log_action "Already in $desired_profile mode"
+        send_notification "Already in $desired_profile mode."
+    fi
+}
+
+
+#determine if the system is on AC power
+function on_ac_power() {
+    battery_state=$(upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -m 1 state: | cut -d ':' -f 2)
+
+    if [[ "$battery_state" == "               charging" || "$battery_state" == "               fully-charged" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#reload the configuration after editing
+function reload_configuration() {
+    echo -e "${YELLOW}Reloading autopower configuration...${NC}"
+    require_sudo
+    local timer_length=$(grep -E "^check_interval" "$config_file" | awk -F'=' '{print $2}' | xargs)
+    timer_length=${timer_length:-30}  # Default to 30 seconds if not set
+
+    local timer_file="/etc/systemd/system/autopower.timer"
+    cat <<EOF | sudo tee "$timer_file" > /dev/null
+[Unit]
+Description=Run Auto Power Mode Management periodically
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=${timer_length}s
+Unit=autopower.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl restart autopower.timer
+    log_action "Configuration reloaded and systemd timer restarted with a ${timer_length}-second interval."
+}
+
+#configure settings with editor selection (like crontab -e)
+function configure() {
+    require_sudo
+    sudo mkdir -p /etc/autopower
+    local editor
+    echo -e "${BLUE}Select an editor to edit the configuration:${NC}"
+    select editor in "nano" "vim" "emacs"; do
+        case $editor in
+            nano|vim|emacs)
+                sudo $editor "$config_file"
+                break
+                ;;
+            *)
+                echo -e "${RED}Invalid selection, try again.${NC}"
+                ;;
+        esac
+    done
+    reload_configuration
+}
+
+#check power source for systemd timer
+function check_power_source() {
+    if [[ -f /sys/class/power_supply/AC/online ]]; then
+        if [[ $(cat /sys/class/power_supply/AC/online) -eq 1 ]]; then
+            echo "AC"
+        else
+            echo "Battery"
+        fi
+    else
+        echo "Unknown"
+    fi
+}
+
+#create systemd service and timer
+function setup_systemd_timer() {
+    require_sudo
+    local service_file="/etc/systemd/system/autopower.service"
+    local timer_file="/etc/systemd/system/autopower.timer"
+    local timer_length=30  # Default to 30 seconds
+    local power_source=$(check_power_source)
+
+    cat <<EOF | sudo tee "$service_file" > /dev/null
+[Unit]
+Description=Auto Power Mode Management
+
+[Service]
+ExecStart=/usr/bin/autopower -u
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    cat <<EOF | sudo tee "$timer_file" > /dev/null
+[Unit]
+Description=Run Auto Power Mode Management periodically
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=${timer_length}s
+Unit=autopower.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    sudo systemctl enable autopower.timer
+    sudo systemctl start autopower.timer
+    log_action "Systemd timer setup complete and started with a ${timer_length}-second interval."
+}
+
+#automatically manage power mode
+function auto_start() {
+    require_sudo
+    sudo systemctl enable autopower.timer
+    sudo systemctl start autopower.timer
+    log_action "Auto power management has been started and enabled to run at boot."
+    echo -e "${GREEN}Auto power management has been started and enabled to run at boot.${NC}"
+}
+
+#pause automatic power management
+function pause() {
+    require_sudo
+    sudo systemctl stop autopower.timer
+    sudo systemctl disable autopower.timer
+    log_action "Auto power management has been paused and disabled."
+    echo -e "${YELLOW}Auto power management has been paused and disabled.${NC}"
+}
+
+#get status of the daemon
+function status() {
+    local current_profile=$(get_current_profile)
+    local battery_status=$(upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -E "state" | awk '{print $2}')
+    local timer_setting=$(grep -E "^OnUnitActiveSec" /etc/systemd/system/autopower.timer | awk -F'=' '{print $2}' | xargs)
+
+    case "$current_profile" in
+        performance)
+            echo -e "${GREEN}Current Power Mode: Performance${NC}"
+            ;;
+        balanced)
+            echo -e "${GREEN}Current Power Mode: Balanced${NC}"
+            ;;
+        power-saver)
+            echo -e "${GREEN}Current Power Mode: Power-Saver${NC}"
+            ;;
+        *)
+            echo -e "${RED}Current Power Mode: Unknown (detected: $current_profile)${NC}"
+            ;;
+    esac
+
+    echo "Battery Status: $battery_status"
+    echo "Systemd Timer Interval: $timer_setting"
+    local timer_status=$(systemctl is-active autopower.timer)
+    echo "Systemd Timer Status: $timer_status"
+}
+
+#show the GNU GPL Warranty disclaimer
+function show_w() {
+    echo -e "${GREEN}NO WARRANTY${NC}"
+    echo -e "${GREEN}-----------${NC}"
+    echo "This program is free software; you can redistribute it and/or modify"
+    echo "it under the terms of the GNU General Public License as published by"
+    echo "the Free Software Foundation; either version 3 of the License, or"
+    echo "(at your option) any later version."
+    echo
+    echo "This program is distributed in the hope that it will be useful,"
+    echo "but WITHOUT ANY WARRANTY; without even the implied warranty of"
+    echo "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the"
+    echo "GNU General Public License for more details."
+    echo
+    echo "You should have received a copy of the GNU General Public License"
+    echo "along with this program. If not, see <http://www.gnu.org/licenses/>."
+}
+
+#show the GNU GPL Copyright notice
+function show_c() {
+    echo -e "${GREEN}COPYRIGHT NOTICE${NC}"
+    echo -e "${GREEN}----------------${NC}"
+    echo "Copyright (C) $(date +%Y) SnekTheGreat"
+    echo
+    echo "This program is free software: you can redistribute it and/or modify"
+    echo "it under the terms of the GNU General Public License as published by"
+    echo "the Free Software Foundation, either version 3 of the License, or"
+    echo "(at your option) any later version."
+    echo
+    echo "This program is distributed in the hope that it will be useful,"
+    echo "but WITHOUT ANY WARRANTY; without even the implied warranty of"
+    echo "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the"
+    echo "GNU General Public License for more details."
+    echo
+    echo "You should have received a copy of the GNU General Public License"
+    echo "along with this program. If not, see <http://www.gnu.org/licenses/>."
+}
+
+#main cli function
+function cli() {
+    while getopts ":cshpauwc" opt; do
+        case ${opt} in
+            c) configure ;;
+            s) status ;;
+            h) help ;;
+            p) pause ;;
+            a) auto_start ;;
+            u) set_power_profile ;;  # Immediate update
+            w) show_w ;;              # Show Warranty disclaimer
+            c) show_c ;;              # Show Copyright notice
+            \?) echo -e "${RED}Invalid option: -$OPTARG${NC}" >&2; exit 1 ;;
+        esac
+    done
+
+    if [ $OPTIND -eq 1 ]; then
+        help
+    fi
+}
+
+#help function
+function help() {
+    echo -e "${GREEN}Usage: autopower [-cshpauw]${NC}"
+    echo "Options:"
+    echo "  -c    Configure settings"
+    echo "  -s    Show status"
+    echo "  -h    Display this help message"
+    echo "  -p    Pause automatic power management"
+    echo "  -a    Auto start service"
+    echo "  -u    Update power mode immediately"
+    echo "  -w    Show GNU GPL Warranty disclaimer"
+    echo "  -c    Show GNU GPL Copyright notice"
+}
+
+cli "$@"

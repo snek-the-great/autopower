@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+# Ensure the /etc/autopower directory exists before installation
+if [ ! -d /etc/autopower ]; then
+    mkdir -p /etc/autopower
+fi
+
+exit 0

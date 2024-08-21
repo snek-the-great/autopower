@@ -1,0 +1,44 @@
+.\" Manpage for autopower
+.TH AUTPOWER 1 "August 2024" "1.0" "AutoPower Manual"
+.SH NAME
+autopower \- Automatically manage CPU power modes based on power source
+.SH SYNOPSIS
+.B autopower
+[\-cshpau]
+.SH DESCRIPTION
+.B autopower
+is a script designed to automatically switch CPU power modes on a Linux laptop based on whether the system is on AC power or battery. It supports configuring power modes, checking status, pausing power management, and managing a systemd timer.
+
+.SH OPTIONS
+.TP
+.B \-c
+Configure the script settings.
+.TP
+.B \-s
+Show the current power mode and status.
+.TP
+.B \-h
+Display this help message.
+.TP
+.B \-p
+Pause the automatic power management.
+.TP
+.B \-a
+Automatically start the service and enable it at boot.
+.TP
+.B \-u
+Update power mode immediately based on the current power source.
+
+.SH FILES
+.TP
+/etc/autopower/autopower.conf
+Configuration file for the autopower script.
+
+.SH AUTHOR
+SnekTheGreat
+
+.SH BUGS
+No known bugs. Please report any issues through GitHub.
+
+.SH SEE ALSO
+powerprofilesctl(1), systemd(1), upower(1)

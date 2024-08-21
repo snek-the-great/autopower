@@ -1,0 +1,8 @@
+Package: autopower
+Version: 1.0
+Section: admin
+Priority: optional
+Architecture: amd64
+Depends: upower, power-profiles-daemon, systemd
+Description: A script to switch CPU mode based on charging status
+Maintainer: SnekTheGreat <snek@snekthegreat.com>

@@ -1,0 +1,53 @@
+#!/bin/bash
+set -e
+
+# Post-install script for autopower package
+
+# Ensure the autopower group exists
+if ! getent group autopowerusers > /dev/null; then
+    addgroup --system autopowerusers
+fi
+
+# Add the current user to the autopowerusers group
+current_user=$(logname)  # This should correctly identify the current user
+usermod -a -G autopowerusers "$current_user"
+
+# Set the correct group ownership and permissions
+chown -R :autopowerusers /etc/autopower
+chmod -R 770 /etc/autopower
+
+# Handle the autopower.conf file
+if [ -f /etc/autopower/autopower.conf ]; then
+    echo "/etc/autopower/autopower.conf already exists."
+    read -p "Do you want to overwrite it with the new version? (y/n): " choice
+    case "$choice" in 
+        y|Y ) 
+            echo "Overwriting the file..."
+            cp -f /etc/autopower/autopower.conf.new /etc/autopower/autopower.conf
+            rm -f /etc/autopower/autopower.conf.new
+            ;;
+        n|N ) 
+            echo "Keeping the existing file."
+            mv /etc/autopower/autopower.conf.new /etc/autopower/autopower.conf.new.bak
+            ;;
+        * ) 
+            echo "Invalid choice. Keeping the existing file."
+            mv /etc/autopower/autopower.conf.new /etc/autopower/autopower.conf.new.bak
+            ;;
+    esac
+else
+    echo "Installing the configuration file..."
+    mv /etc/autopower/autopower.conf.new /etc/autopower/autopower.conf
+fi
+
+# Enable and start the service
+if [ -f /etc/systemd/system/autopower.service ]; then
+    systemctl enable autopower.service
+    systemctl start autopower.service
+else
+    echo "Error: autopower.service not found in /etc/systemd/system/"
+fi
+sudo systemctl enable autopower.service
+sudo systemctl start autopower.service
+echo "Post-installation steps completed."
+exit 0
