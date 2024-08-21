@@ -290,7 +290,7 @@ function show_c() {
 
 #main cli function
 function cli() {
-    while getopts ":cshpauwc" opt; do
+    while getopts ":eshpauwcr" opt; do
         case ${opt} in
             e) configure ;;
             s) status ;;
