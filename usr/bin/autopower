@@ -132,6 +132,7 @@ EOF
     sudo systemctl daemon-reload
     sudo systemctl restart autopower.timer
     log_action "Configuration reloaded and systemd timer restarted with a ${timer_length}-second interval."
+    echo "Configuration reloaded and systemd timer restarted with a ${timer_length}-second interval."
 }
 
 #configure settings with editor selection (like crontab -e)
@@ -291,14 +292,15 @@ function show_c() {
 function cli() {
     while getopts ":cshpauwc" opt; do
         case ${opt} in
-            c) configure ;;
+            e) configure ;;
             s) status ;;
             h) help ;;
             p) pause ;;
             a) auto_start ;;
             u) set_power_profile ;;  # Immediate update
-            w) show_w ;;              # Show Warranty disclaimer
-            c) show_c ;;              # Show Copyright notice
+            w) show_w ;;          # Show Warranty disclaimer
+            c) show_c ;;       # Show Copyright notice
+            r) reload_configuration ;; # Reload configuration immediately
             \?) echo -e "${RED}Invalid option: -$OPTARG${NC}" >&2; exit 1 ;;
         esac
     done
@@ -312,7 +314,7 @@ function cli() {
 function help() {
     echo -e "${GREEN}Usage: autopower [-cshpauwc]${NC}"
     echo "Options:"
-    echo "  -c    Configure settings"
+    echo "  -e    Edit settings"
     echo "  -s    Show status"
     echo "  -h    Display this help message"
     echo "  -p    Pause automatic power management"

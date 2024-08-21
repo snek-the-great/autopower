@@ -1,5 +1,5 @@
 Package: autopower
-Version: 1.0
+Version: 0.95
 Section: admin
 Priority: optional
 Architecture: amd64
