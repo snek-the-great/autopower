@@ -110,10 +110,10 @@ function on_ac_power() {
 
 #reload the configuration after editing
 function reload_configuration() {
-    echo -e "${YELLOW}Reloading autopower configuration...${NC}"
+    echo -e "${YELLOW}Reloading autopower daemon...${NC}"
     require_sudo
     local timer_length=$(grep -E "^check_interval" "$config_file" | awk -F'=' '{print $2}' | xargs)
-    timer_length=${timer_length:-30}  # Default to 30 seconds if not set
+    timer_length=${timer_length:-10}  # Default to 10 seconds if not set
 
     local timer_file="/etc/systemd/system/autopower.timer"
     cat <<EOF | sudo tee "$timer_file" > /dev/null
@@ -132,7 +132,7 @@ EOF
     sudo systemctl daemon-reload
     sudo systemctl restart autopower.timer
     log_action "Configuration reloaded and systemd timer restarted with a ${timer_length}-second interval."
-    echo "Configuration reloaded and systemd timer restarted with a ${timer_length}-second interval."
+    echo "Daemon reloaded and systemd timer restarted with a ${timer_length}-second interval."
 }
 
 #configure settings with editor selection (like crontab -e)

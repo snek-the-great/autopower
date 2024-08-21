@@ -49,5 +49,6 @@ else
 fi
 sudo systemctl enable autopower.service
 sudo systemctl start autopower.service
+autopower -r
 echo "Post-installation steps completed."
 exit 0

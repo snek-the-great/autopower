@@ -42,7 +42,7 @@ sudo autopower [options]
 
 ### Options
 
-- `-c` : Configure settings (e.g., power profiles, timer interval).
+- `-e` : Configure settings (e.g., power profiles, timer interval).
 - `-s` : Show the current power mode and system status.
 - `-h` : Display help message with usage instructions.
 - `-p` : Pause automatic power management.
@@ -50,6 +50,7 @@ sudo autopower [options]
 - `-u` : Update power mode immediately based on the current power source.
 - `-w` : Show GNU GPL Warranty disclaimer.
 - `-c` : Show GNU GPL Copyright notice.
+- `-r` : Reload the AutoPower Daemon immediately.
 
 ## Configuration
 
