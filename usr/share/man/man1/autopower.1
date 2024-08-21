@@ -4,7 +4,7 @@
 autopower \- Automatically manage CPU power modes based on power source
 .SH SYNOPSIS
 .B autopower
-[\-cshpau]
+[\-cshpauwc]
 .SH DESCRIPTION
 .B autopower
 is a script designed to automatically switch CPU power modes on a Linux laptop based on whether the system is on AC power or battery. It supports configuring power modes, checking status, pausing power management, and managing a systemd timer.
@@ -28,6 +28,12 @@ Automatically start the service and enable it at boot.
 .TP
 .B \-u
 Update power mode immediately based on the current power source.
+.TP
+.B \-w
+Show the GNU GPL Warranty disclaimer.
+.TP
+.B \-c
+Show the GNU GPL Copyright information.
 
 .SH FILES
 .TP

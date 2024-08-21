@@ -1,8 +1,3 @@
-Here's a modified version of the `README.md` file that assumes the script doesn't have a file extension and is meant to be installed as a `.deb` package from GitHub Releases:
-
-### Example `README.md`
-
-```markdown
 # AutoPower
 
 AutoPower is a bash script designed to automatically manage CPU power modes on a Linux laptop based on the current power source (AC or battery). It allows for configuration, status checks, and management of power modes using a systemd timer.

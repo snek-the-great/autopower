@@ -310,7 +310,7 @@ function cli() {
 
 #help function
 function help() {
-    echo -e "${GREEN}Usage: autopower [-cshpauw]${NC}"
+    echo -e "${GREEN}Usage: autopower [-cshpauwc]${NC}"
     echo "Options:"
     echo "  -c    Configure settings"
     echo "  -s    Show status"
