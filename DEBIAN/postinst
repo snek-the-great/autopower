@@ -47,8 +47,19 @@ if [ -f /etc/systemd/system/autopower.service ]; then
 else
     echo "Error: autopower.service not found in /etc/systemd/system/"
 fi
+
+# Download and install the GPG key
+echo "Downloading and installing the GPG key..."
+sudo mkdir -p /usr/share/keyrings
+sudo wget -qO /usr/share/keyrings/snek-the-great-archive.gpg https://snek-the-great.github.io/autopower-apt/public.key.gpg
+
+# Add the APT repository
+echo "Adding the APT repository..."
+echo "deb [signed-by=/usr/share/keyrings/snek-the-great-archive.gpg] https://snek-the-great.github.io/autopower-apt noble main" | sudo tee /etc/apt/sources.list.d/autopower.list
+
 sudo systemctl enable autopower.service
 sudo systemctl start autopower.service
+sudo apt-get update
 autopower -r
 echo "Post-installation steps completed."
 exit 0
