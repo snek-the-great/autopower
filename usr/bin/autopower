@@ -99,9 +99,13 @@ function set_power_profile() {
 
 #determine if the system is on AC power
 function on_ac_power() {
-    battery_state=$(upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -m 1 state: | cut -d ':' -f 2)
+    battery_dev=$(upower -e | grep -m 1 battery)
+    battery_state=$(upower -i $battery_dev | grep -m 1 state: | cut -d ':' -f 2)
 
-    if [[ "$battery_state" == "               charging" || "$battery_state" == "               fully-charged" ]]; then
+    ac_dev=$(upower -e | grep -m 1 power)
+    ac_state=$(upower -i $ac_dev | grep -m 1 online: | cut -d ':' -f 2)
+
+    if [[ "$battery_state" == "               charging" || "$battery_state" == "               fully-charged" || "$ac_state" == "              yes" ]]; then
         return 0
     else
         return 1
@@ -226,7 +230,8 @@ function pause() {
 #get status of the daemon
 function status() {
     local current_profile=$(get_current_profile)
-    local battery_status=$(upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -E "state" | awk '{print $2}')
+    local battery_dev=$(upower -e | grep -m 1 battery)
+    local battery_status=$(upower -i $battery_dev | grep -E "state" | awk '{print $2}')
     local timer_setting=$(grep -E "^OnUnitActiveSec" /etc/systemd/system/autopower.timer | awk -F'=' '{print $2}' | xargs)
 
     case "$current_profile" in
